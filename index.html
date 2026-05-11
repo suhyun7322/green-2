@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Reward Engine - 탄소 절감 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f0; }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-green-800">🌿 Green Reward Engine</h1>
+                <p class="text-gray-600 italic">"당신의 선택이 지구를 쿨하게 만듭니다"</p>
+            </div>
+            <div class="text-right">
+                <span class="text-sm font-semibold text-gray-500">누적 리워드 포인트</span>
+                <p id="totalPoints" class="text-3xl font-bold text-green-600">2,450 P</p>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="lg:col-span-1 space-y-6">
+                <div class="glass p-6 rounded-3xl shadow-xl">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-700">1. 영수증 업로드</h2>
+                    <div class="border-2 border-dashed border-green-300 rounded-2xl p-8 text-center cursor-pointer hover:bg-green-50 transition" onclick="document.getElementById('receiptInput').click()">
+                        <input type="file" id="receiptInput" class="hidden" accept="image/*" onchange="handleFileUpload(event)">
+                        <p class="text-gray-500">📷 영수증 촬영 또는 파일 업로드</p>
+                    </div>
+                    <div id="ocrStatus" class="mt-4 text-sm text-green-600 hidden font-medium text-center animate-pulse">
+                        영수증에서 글자를 추출 중입니다...
+                    </div>
+                </div>
+
+                <div id="selectionArea" class="glass p-6 rounded-3xl shadow-xl hidden">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-700">2. 절감 품목 매칭</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-1">기존 구매 예정 품목</label>
+                            <input type="text" id="originalItem" placeholder="예: 소고기(500g)" class="w-full p-3 rounded-xl border focus:outline-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 mb-1">대체 구매 품목 (영수증 내)</label>
+                            <input type="text" id="replacedItem" placeholder="예: 두부/콩고기" class="w-full p-3 rounded-xl border focus:outline-green-500">
+                        </div>
+                        <button onclick="calculateSaving()" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-200">
+                            절감 수치 계산하기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="glass p-6 rounded-3xl shadow-lg border-l-8 border-green-500">
+                        <h3 class="text-gray-500 text-sm">오늘의 탄소 절감량</h3>
+                        <p id="todayCarbon" class="text-2xl font-bold text-gray-800">0.0 kgCO₂e</p>
+                    </div>
+                    <div class="glass p-6 rounded-3xl shadow-lg border-l-8 border-blue-400">
+                        <h3 class="text-gray-500 text-sm">기여도 순위</h3>
+                        <p class="text-2xl font-bold text-gray-800">상위 12%</p>
+                    </div>
+                </div>
+
+                <div class="glass p-8 rounded-3xl shadow-xl">
+                    <h2 class="text-xl font-semibold mb-6 text-gray-700">나의 탄소 절감 히스토리</h2>
+                    <canvas id="savingChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 초기 데이터 (차트용)
+        const ctx = document.getElementById('savingChart').getContext('2d');
+        const savingChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['월', '화', '수', '목', '금', '토', '일'],
+                datasets: [{
+                    label: '탄소 절감량 (kg)',
+                    data: [1.2, 0.8, 2.5, 0.5, 3.2, 1.8, 0],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            }
+        });
+
+        // 파일 업로드 시뮬레이션
+        function handleFileUpload(event) {
+            const status = document.getElementById('ocrStatus');
+            const selectionArea = document.getElementById('selectionArea');
+            
+            status.classList.remove('hidden');
+            
+            setTimeout(() => {
+                status.innerText = "✅ 추출 완료: '두부', '우유', '물티슈' 등이 감지됨";
+                status.classList.remove('animate-pulse');
+                selectionArea.classList.remove('hidden');
+            }, 1500);
+        }
+
+        // 절감 수치 계산 (가상 알고리즘)
+        function calculateSaving() {
+            const original = document.getElementById('originalItem').value;
+            const replaced = document.getElementById('replacedItem').value;
+            
+            if(!original || !replaced) {
+                alert("품목을 입력해주세요!");
+                return;
+            }
+
+            // 시연용 가상 로직: 소고기 언급 시 절감량 대폭 상승
+            let savingValue = original.includes("소고기") ? 15.5 : 2.3;
+            let points = Math.floor(savingValue * 100);
+
+            // 대시보드 업데이트
+            document.getElementById('todayCarbon').innerText = `${savingValue} kgCO₂e`;
+            document.getElementById('totalPoints').innerText = `${(2450 + points).toLocaleString()} P`;
+            
+            // 차트 마지막 데이터 업데이트
+            savingChart.data.datasets[0].data[6] = savingValue;
+            savingChart.update();
+
+            alert(`축하합니다! ${savingValue}kg의 탄소를 절감하여 ${points}포인트를 획득하셨습니다.`);
+        }
+    </script>
+</body>
+</html>
