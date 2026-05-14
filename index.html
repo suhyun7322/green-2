@@ -8,139 +8,167 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Apple SD Gothic Neo', sans-serif; }
         
-        /* [배경 설정] 보내주신 1000041093.jpg 이미지를 여기에 넣으세요 */
+        /* 배경 설정: 파일명이 1000041093.jpg 인지 꼭 확인! */
         #background-container {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('1000041093.jpg'); /* 파일명이 다르면 수정해주세요 */
+            background-image: url('1000041093.jpg'); 
             background-size: cover;
-            background-position: center bottom;
+            background-position: center;
             z-index: -2;
-            transition: filter 2s ease-in-out;
+            transition: filter 1.5s ease;
         }
 
-        /* 탄소 배출 시 안개/매연이 끼는 효과 */
         #smog-layer {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(50, 50, 50, 0);
+            background: rgba(0, 0, 0, 0);
             z-index: -1;
-            pointer-events: none;
-            transition: background 2s ease-in-out;
+            transition: background 1.5s ease;
         }
 
-        .polluted-bg { filter: saturate(0.3) brightness(0.7) blur(2px); }
-        .polluted-smog { background: rgba(80, 80, 80, 0.4) !important; }
+        .polluted-bg { filter: grayscale(1) brightness(0.4); }
+        .polluted-smog { background: rgba(40, 40, 40, 0.6) !important; }
 
-        /* UI 요소: 투명하고 깔끔하게 */
         .glass-ui {
             background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(12px);
             border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        select, button {
-            transition: all 0.3s ease;
+        .recommend-badge {
+            background: #22c55e;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-6">
+<body class="flex flex-col items-center justify-center min-h-screen px-4">
 
-    <!-- 배경 레이어 -->
     <div id="background-container"></div>
     <div id="smog-layer"></div>
 
-    <!-- 메인 대시보드 (제목 제거) -->
-    <div class="w-full max-w-3xl space-y-6">
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- 사진 업로드 카드 -->
-            <div class="glass-ui p-8 text-center text-white">
-                <div class="mb-4 text-4xl">📷</div>
-                <input type="file" id="kioskInput" class="hidden" accept="image/*" onchange="onImageUpload(event)">
-                <button onclick="document.getElementById('kioskInput').click()" class="bg-white/30 hover:bg-white/50 px-6 py-2 rounded-full text-sm font-medium">
-                    키오스크 사진 촬영
-                </button>
-                <div id="status" class="mt-3 text-xs opacity-70">화면을 촬영하면 메뉴를 인식합니다</div>
-            </div>
-
-            <!-- 메뉴 비교 카드 -->
-            <div class="glass-ui p-8 text-white">
-                <div class="space-y-4">
-                    <select id="menuA" class="w-full bg-white/20 border-none rounded-xl p-3 text-white focus:outline-none appearance-none">
-                        <option value="" disabled selected>메뉴 A</option>
-                    </select>
-                    <div class="text-center opacity-40">VS</div>
-                    <select id="menuB" class="w-full bg-white/20 border-none rounded-xl p-3 text-white focus:outline-none appearance-none">
-                        <option value="" disabled selected>메뉴 B</option>
-                    </select>
-                    <button onclick="runComparison()" class="w-full bg-green-500/80 hover:bg-green-600 py-3 rounded-xl font-bold mt-4 shadow-lg">
-                        비교하기
-                    </button>
-                </div>
-            </div>
+    <div class="w-full max-w-lg space-y-4">
+        <!-- 1. 사진 업로드 -->
+        <div class="glass-ui p-5 text-center">
+            <input type="file" id="kioskInput" class="hidden" onchange="onUpload()">
+            <button onclick="document.getElementById('kioskInput').click()" class="text-white text-3xl hover:scale-110 transition-transform">📷</button>
+            <p id="status" class="text-white text-[10px] mt-2 opacity-60">화면 촬영으로 메뉴 인식</p>
         </div>
 
-        <!-- 결과 알림창 (기본 숨김) -->
-        <div id="resultBox" class="glass-ui p-10 text-center text-white hidden">
-            <div id="resultText" class="text-2xl font-light mb-2"></div>
-            <div id="savingText" class="text-4xl font-bold mb-4"></div>
-            <div id="rewardText" class="text-sm opacity-80 bg-white/10 py-2 rounded-full"></div>
-            <button onclick="location.reload()" class="mt-6 text-xs underline opacity-50">다시 하기</button>
+        <!-- 2. 메뉴 선택 및 비교 -->
+        <div class="glass-ui p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <select id="menuA" class="w-full p-3 rounded-xl bg-white/20 text-white text-sm outline-none appearance-none border border-white/10">
+                    <option value="" class="text-black">메뉴 A 선택</option>
+                </select>
+                <select id="menuB" class="w-full p-3 rounded-xl bg-white/20 text-white text-sm outline-none appearance-none border border-white/10">
+                    <option value="" class="text-black">메뉴 B 선택</option>
+                </select>
+            </div>
+            <button onclick="compare()" class="w-full py-4 bg-green-500/90 text-white font-bold rounded-2xl shadow-xl hover:bg-green-600 transition">
+                탄소 발자국 비교하기
+            </button>
+        </div>
+
+        <!-- 3. 비교 결과창 (A와 B를 각각 보여줌) -->
+        <div id="resultArea" class="hidden space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <!-- 메뉴 A 결과 -->
+                <div id="cardA" class="glass-ui p-5 text-center text-white relative">
+                    <div id="badgeA" class="recommend-badge hidden">추천 ✨</div>
+                    <p class="text-[10px] opacity-70 mb-1" id="nameA">메뉴 A</p>
+                    <p class="text-2xl font-black" id="valA">0.0kg</p>
+                </div>
+                <!-- 메뉴 B 결과 -->
+                <div id="cardB" class="glass-ui p-5 text-center text-white relative">
+                    <div id="badgeB" class="recommend-badge hidden">추천 ✨</div>
+                    <p class="text-[10px] opacity-70 mb-1" id="nameB">메뉴 B</p>
+                    <p class="text-2xl font-black" id="valB">0.0kg</p>
+                </div>
+            </div>
+            
+            <!-- 최종 추천 멘트 -->
+            <div class="glass-ui p-4 text-center text-white">
+                <p id="recommendMsg" class="text-sm font-medium"></p>
+                <button onclick="location.reload()" class="text-[10px] opacity-40 underline mt-3">다시 하기</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // 1. 인식 시뮬레이션 (1번 조원 파트)
-        function onImageUpload(event) {
-            document.getElementById('status').innerText = "분석 중...";
+        function onUpload() {
+            document.getElementById('status').innerText = "메뉴 인식 중...";
             setTimeout(() => {
-                const menus = ["소고기 버거 세트", "콩고기 스테이크", "치즈 파스타", "샐러드 보울"];
-                const selects = [document.getElementById('menuA'), document.getElementById('menuB')];
-                
-                selects.forEach(s => {
-                    s.innerHTML = "";
-                    menus.forEach(m => {
-                        let op = document.createElement('option');
-                        op.value = m; op.text = m; op.className = "text-black";
-                        s.appendChild(op);
-                    });
+                const menus = ["소고기 버거", "대체육 버거", "치즈 스틱", "아이스 아메리카노", "샐러드"];
+                const s1 = document.getElementById('menuA');
+                const s2 = document.getElementById('menuB');
+                menus.forEach(m => {
+                    s1.add(new Option(m, m));
+                    s2.add(new Option(m, m));
                 });
-                document.getElementById('status').innerText = "메뉴가 로드되었습니다";
+                document.getElementById('status').innerText = "인식 완료";
             }, 1000);
         }
 
-        // 2. 계산 및 배경 변화 (2번, 4번 파트)
-        function runComparison() {
-            const menuA = document.getElementById('menuA').value;
-            const menuB = document.getElementById('menuB').value;
-            if(!menuA || !menuB) return;
+        function compare() {
+            const m1 = document.getElementById('menuA').value;
+            const m2 = document.getElementById('menuB').value;
+            if(!m1 || !m2) return alert("두 가지 메뉴를 모두 선택해 주세요!");
 
-            const carbonMap = { "소고기 버거 세트": 12.0, "콩고기 스테이크": 2.5, "치즈 파스타": 4.5, "샐러드 보울": 1.2 };
-            
-            const diff = (carbonMap[menuA] - carbonMap[menuB]).toFixed(1);
-            const isGood = diff > 0;
+            const db = {"소고기 버거": 15.2, "대체육 버거": 2.1, "치즈 스틱": 3.5, "아이스 아메리카노": 0.5, "샐러드": 1.2};
+            const score1 = db[m1];
+            const score2 = db[m2];
 
-            // 결과창 표시
-            document.getElementById('resultBox').classList.remove('hidden');
-            document.getElementById('resultText').innerText = isGood ? "당신의 선택으로 아낀 탄소" : "선택하신 메뉴의 탄소량";
-            document.getElementById('savingText').innerText = `${Math.abs(diff)}kg`;
-            document.getElementById('rewardText').innerText = isGood ? `🎉 환경 기여 리워드 ${Math.abs(diff)*100}P 적립` : "더 나은 선택을 고민해볼까요?";
+            // UI 업데이트
+            document.getElementById('resultArea').classList.remove('hidden');
+            document.getElementById('nameA').innerText = m1;
+            document.getElementById('valA').innerText = score1 + "kg";
+            document.getElementById('nameB').innerText = m2;
+            document.getElementById('valB').innerText = score2 + "kg";
 
-            // 배경 효과 (이게 핵심!)
+            const badgeA = document.getElementById('badgeA');
+            const badgeB = document.getElementById('badgeB');
+            const msg = document.getElementById('recommendMsg');
             const bg = document.getElementById('background-container');
             const smog = document.getElementById('smog-layer');
 
-            if (!isGood) {
-                bg.classList.add('polluted-bg');
-                smog.classList.add('polluted-smog');
-            } else {
+            // 추천 로직 및 하늘색 변화
+            badgeA.classList.add('hidden');
+            badgeB.classList.add('hidden');
+
+            if(score1 < score2) {
+                badgeA.classList.remove('hidden');
+                msg.innerText = `지구를 위해 '${m1}'를 선택하는 것이 더 좋습니다!`;
                 bg.classList.remove('polluted-bg');
                 smog.classList.remove('polluted-smog');
+            } else if(score2 < score1) {
+                badgeB.classList.remove('hidden');
+                msg.innerText = `지구를 위해 '${m2}'를 선택하는 것이 더 좋습니다!`;
+                bg.classList.remove('polluted-bg');
+                smog.classList.remove('polluted-smog');
+            } else {
+                msg.innerText = "두 메뉴의 탄소 배출량이 같습니다.";
+                bg.classList.remove('polluted-bg');
+            }
+
+            // 만약 선택된 메뉴 중 하나라도 배출량이 일정 기준(예: 10kg)을 넘으면 하늘이 탁해지게 연출
+            if(Math.min(score1, score2) > 8) {
+                bg.classList.add('polluted-bg');
+                smog.classList.add('polluted-smog');
             }
         }
     </script>
 </body>
 </html>
+
 
