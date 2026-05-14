@@ -3,172 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carbon Green Kiosk</title>
+    <title>Green Kiosk Project</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Apple SD Gothic Neo', sans-serif; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Apple SD Gothic Neo', sans-serif; overflow: hidden; }
         
-        /* 배경 설정: 파일명이 1000041093.jpg 인지 꼭 확인! */
-        #background-container {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+        /* 배경 설정 */
+        #bg-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-image: url('1000041093.jpg'); 
-            background-size: cover;
-            background-position: center;
-            z-index: -2;
-            transition: filter 1.5s ease;
+            background-size: cover; background-position: center;
+            z-index: -2; transition: all 1s ease;
         }
 
-        #smog-layer {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0);
-            z-index: -1;
-            transition: background 1.5s ease;
-        }
-
-        .polluted-bg { filter: grayscale(1) brightness(0.4); }
-        .polluted-smog { background: rgba(40, 40, 40, 0.6) !important; }
-
-        .glass-ui {
+        /* 글래스모피즘 UI */
+        .glass {
             background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(12px);
-            border-radius: 24px;
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 24px;
         }
 
-        .recommend-badge {
-            background: #22c55e;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 99px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
-        }
+        .polluted { filter: grayscale(0.8) brightness(0.3) !important; }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen px-4">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <div id="background-container"></div>
-    <div id="smog-layer"></div>
+    <div id="bg-container"></div>
 
-    <div class="w-full max-w-lg space-y-4">
-        <!-- 1. 사진 업로드 -->
-        <div class="glass-ui p-5 text-center">
-            <input type="file" id="kioskInput" class="hidden" onchange="onUpload()">
-            <button onclick="document.getElementById('kioskInput').click()" class="text-white text-3xl hover:scale-110 transition-transform">📷</button>
-            <p id="status" class="text-white text-[10px] mt-2 opacity-60">화면 촬영으로 메뉴 인식</p>
+    <!-- [STEP 1] 사진 업로드 섹션 -->
+    <div id="step-upload" class="glass p-8 text-center text-white w-full max-w-sm">
+        <div class="text-5xl mb-4">📷</div>
+        <p class="mb-6 opacity-80">키오스크 메뉴판을 촬영해주세요</p>
+        <input type="file" id="photo-input" class="hidden" accept="image/*">
+        <button onclick="document.getElementById('photo-input').click()" class="bg-white text-green-600 px-6 py-3 rounded-full font-bold shadow-lg">
+            사진 선택하기
+        </button>
+        <button onclick="uploadToBackend()" id="submit-btn" class="hidden mt-4 w-full bg-green-500 py-2 rounded-xl font-bold">
+            분석 시작하기
+        </button>
+    </div>
+
+    <!-- [STEP 2] 분석 중 로딩 섹션 -->
+    <div id="step-loading" class="hidden glass p-10 text-center text-white">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+        <p class="italic">백엔드 서버에서 메뉴 분석 중...</p>
+    </div>
+
+    <!-- [STEP 3] 결과 및 비교 섹션 -->
+    <div id="step-result" class="hidden w-full max-w-lg space-y-4">
+        <div class="glass p-6 grid grid-cols-2 gap-4">
+            <select id="menuA" class="bg-white/20 p-3 rounded-xl text-white outline-none">
+                <option value="" class="text-black">메뉴 A</option>
+            </select>
+            <select id="menuB" class="bg-white/20 p-3 rounded-xl text-white outline-none">
+                <option value="" class="text-black">메뉴 B</option>
+            </select>
+            <button onclick="showComparison()" class="col-span-2 bg-green-500 py-4 rounded-2xl text-white font-bold">탄소 발자국 비교</button>
         </div>
 
-        <!-- 2. 메뉴 선택 및 비교 -->
-        <div class="glass-ui p-6 space-y-4">
-            <div class="grid grid-cols-2 gap-3">
-                <select id="menuA" class="w-full p-3 rounded-xl bg-white/20 text-white text-sm outline-none appearance-none border border-white/10">
-                    <option value="" class="text-black">메뉴 A 선택</option>
-                </select>
-                <select id="menuB" class="w-full p-3 rounded-xl bg-white/20 text-white text-sm outline-none appearance-none border border-white/10">
-                    <option value="" class="text-black">메뉴 B 선택</option>
-                </select>
+        <div id="compare-cards" class="hidden grid grid-cols-2 gap-4">
+            <div id="cardA" onclick="checkImpact('A')" class="glass p-5 text-center text-white cursor-pointer hover:scale-105 transition">
+                <p id="labelA" class="text-xs opacity-70"></p>
+                <p id="valA" class="text-2xl font-bold"></p>
             </div>
-            <button onclick="compare()" class="w-full py-4 bg-green-500/90 text-white font-bold rounded-2xl shadow-xl hover:bg-green-600 transition">
-                탄소 발자국 비교하기
-            </button>
-        </div>
-
-        <!-- 3. 비교 결과창 (A와 B를 각각 보여줌) -->
-        <div id="resultArea" class="hidden space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-                <!-- 메뉴 A 결과 -->
-                <div id="cardA" class="glass-ui p-5 text-center text-white relative">
-                    <div id="badgeA" class="recommend-badge hidden">추천 ✨</div>
-                    <p class="text-[10px] opacity-70 mb-1" id="nameA">메뉴 A</p>
-                    <p class="text-2xl font-black" id="valA">0.0kg</p>
-                </div>
-                <!-- 메뉴 B 결과 -->
-                <div id="cardB" class="glass-ui p-5 text-center text-white relative">
-                    <div id="badgeB" class="recommend-badge hidden">추천 ✨</div>
-                    <p class="text-[10px] opacity-70 mb-1" id="nameB">메뉴 B</p>
-                    <p class="text-2xl font-black" id="valB">0.0kg</p>
-                </div>
-            </div>
-            
-            <!-- 최종 추천 멘트 -->
-            <div class="glass-ui p-4 text-center text-white">
-                <p id="recommendMsg" class="text-sm font-medium"></p>
-                <button onclick="location.reload()" class="text-[10px] opacity-40 underline mt-3">다시 하기</button>
+            <div id="cardB" onclick="checkImpact('B')" class="glass p-5 text-center text-white cursor-pointer hover:scale-105 transition">
+                <p id="labelB" class="text-xs opacity-70"></p>
+                <p id="valB" class="text-2xl font-bold"></p>
             </div>
         </div>
     </div>
 
     <script>
-        function onUpload() {
-            document.getElementById('status').innerText = "메뉴 인식 중...";
+        // 백엔드 팀원이 줄 데이터 구조 (예시)
+        let carbonData = {}; 
+        let currentScores = { A: 0, B: 0 };
+
+        // 1. 사진 선택 시 버튼 노출
+        document.getElementById('photo-input').onchange = function() {
+            document.getElementById('submit-btn').classList.remove('hidden');
+        };
+
+        // 2. 백엔드로 데이터 전송 (연동 핵심)
+        async function uploadToBackend() {
+            // 화면 전환
+            document.getElementById('step-upload').classList.add('hidden');
+            document.getElementById('step-loading').classList.remove('hidden');
+
+            // 실제 백엔드 연동 시 fetch 사용
+            // const formData = new FormData();
+            // formData.append('image', document.getElementById('photo-input').files[0]);
+            // const response = await fetch('/analyze', { method: 'POST', body: formData });
+            // const result = await response.json();
+
+            // [가상 테스트용] 2초 후 분석 완료 가정
             setTimeout(() => {
-                const menus = ["소고기 버거", "대체육 버거", "치즈 스틱", "아이스 아메리카노", "샐러드"];
-                const s1 = document.getElementById('menuA');
-                const s2 = document.getElementById('menuB');
-                menus.forEach(m => {
-                    s1.add(new Option(m, m));
-                    s2.add(new Option(m, m));
+                carbonData = { "소고기 버거": 15.2, "대체육 버거": 2.1, "치즈 스틱": 3.5, "샐러드": 1.2 };
+                const selects = [document.getElementById('menuA'), document.getElementById('menuB')];
+                
+                selects.forEach(select => {
+                    Object.keys(carbonData).forEach(menu => {
+                        let opt = document.createElement('option');
+                        opt.value = menu; opt.text = menu; opt.className = "text-black";
+                        select.add(opt);
+                    });
                 });
-                document.getElementById('status').innerText = "인식 완료";
-            }, 1000);
+
+                document.getElementById('step-loading').classList.add('hidden');
+                document.getElementById('step-result').classList.remove('hidden');
+            }, 2000);
         }
 
-        function compare() {
-            const m1 = document.getElementById('menuA').value;
-            const m2 = document.getElementById('menuB').value;
-            if(!m1 || !m2) return alert("두 가지 메뉴를 모두 선택해 주세요!");
+        // 3. 메뉴 비교 및 출력
+        function showComparison() {
+            const mA = document.getElementById('menuA').value;
+            const mB = document.getElementById('menuB').value;
+            if(!mA || !mB) return;
 
-            const db = {"소고기 버거": 15.2, "대체육 버거": 2.1, "치즈 스틱": 3.5, "아이스 아메리카노": 0.5, "샐러드": 1.2};
-            const score1 = db[m1];
-            const score2 = db[m2];
+            currentScores.A = carbonData[mA];
+            currentScores.B = carbonData[mB];
 
-            // UI 업데이트
-            document.getElementById('resultArea').classList.remove('hidden');
-            document.getElementById('nameA').innerText = m1;
-            document.getElementById('valA').innerText = score1 + "kg";
-            document.getElementById('nameB').innerText = m2;
-            document.getElementById('valB').innerText = score2 + "kg";
+            document.getElementById('compare-cards').classList.remove('hidden');
+            document.getElementById('labelA').innerText = mA;
+            document.getElementById('valA').innerText = currentScores.A + "kg";
+            document.getElementById('labelB').innerText = mB;
+            document.getElementById('valB').innerText = currentScores.B + "kg";
+        }
 
-            const badgeA = document.getElementById('badgeA');
-            const badgeB = document.getElementById('badgeB');
-            const msg = document.getElementById('recommendMsg');
-            const bg = document.getElementById('background-container');
-            const smog = document.getElementById('smog-layer');
-
-            // 추천 로직 및 하늘색 변화
-            badgeA.classList.add('hidden');
-            badgeB.classList.add('hidden');
-
-            if(score1 < score2) {
-                badgeA.classList.remove('hidden');
-                msg.innerText = `지구를 위해 '${m1}'를 선택하는 것이 더 좋습니다!`;
-                bg.classList.remove('polluted-bg');
-                smog.classList.remove('polluted-smog');
-            } else if(score2 < score1) {
-                badgeB.classList.remove('hidden');
-                msg.innerText = `지구를 위해 '${m2}'를 선택하는 것이 더 좋습니다!`;
-                bg.classList.remove('polluted-bg');
-                smog.classList.remove('polluted-smog');
+        // 4. 카드 클릭 시 배경 변화 (JS 로직)
+        function checkImpact(type) {
+            const score = currentScores[type];
+            const bg = document.getElementById('bg-container');
+            
+            if(score >= 5.0) {
+                bg.classList.add('polluted');
             } else {
-                msg.innerText = "두 메뉴의 탄소 배출량이 같습니다.";
-                bg.classList.remove('polluted-bg');
-            }
-
-            // 만약 선택된 메뉴 중 하나라도 배출량이 일정 기준(예: 10kg)을 넘으면 하늘이 탁해지게 연출
-            if(Math.min(score1, score2) > 8) {
-                bg.classList.add('polluted-bg');
-                smog.classList.add('polluted-smog');
+                bg.classList.remove('polluted');
             }
         }
     </script>
 </body>
 </html>
-
-
